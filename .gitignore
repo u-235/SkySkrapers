@@ -1,0 +1,10 @@
+
+.cproject
+.project
+.settings/
+
+Debug/
+Release/
+
+build/
+doc/
