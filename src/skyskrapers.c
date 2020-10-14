@@ -12,6 +12,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "skyskrapers.h"
 
@@ -49,6 +50,7 @@ typedef struct _city {
     tower_t *towers;
     int *clues;
     bool changed;
+    bool must_free;
 } city_t;
 
 bool
@@ -176,9 +178,17 @@ tower_and_options(tower_t *tower, int options)
 }
 
 city_t *
-city_new(int size)
+city_init(city_t *in, int size)
 {
-    city_t *ret = malloc(sizeof(city_t));
+    city_t *ret;
+
+    if (in == 0) {
+        ret = malloc(sizeof(city_t));
+        ret->must_free = true;
+    } else {
+        ret = in;
+        ret->must_free = false;
+    }
 
     ret->clues = 0;
     ret->size = size;
@@ -204,11 +214,38 @@ city_new(int size)
     return ret;
 }
 
+city_t *
+city_new(int size)
+{
+    return city_init(0, size);
+}
+
 void
 city_free(city_t *city)
 {
     free(city->towers);
-    free(city);
+
+    if (city->must_free) {
+        free(city);
+    }
+}
+
+city_t *
+city_copy(city_t *dst, const city_t *src)
+{
+    city_t *ret = dst;
+
+    if (dst == 0) {
+        ret = city_init(0, src->size);
+    }
+
+    dst->size = src->size;
+    dst->mask = src->mask;
+    dst->clues = src->clues;
+    dst->changed = src->changed;
+    memcpy(dst->towers, src->towers, src->size * src->size * sizeof(tower_t));
+
+    return ret;
 }
 
 void
