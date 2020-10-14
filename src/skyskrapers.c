@@ -34,6 +34,9 @@ city_do_exclude(city_t *city);
 bool
 city_do_first_of_many(city_t *city);
 
+unsigned long long
+city_calc_iteration(city_t *city);
+
 enum _sides {
     TOP, RIGHT, BOTTOM, LEFT
 };
@@ -80,6 +83,7 @@ city_solve(city_t *city)
         }
 
         if (city_is_deadloop(city)) {
+            fprintf(stdout, "The number of possible states is %llu\n", city_calc_iteration(city));
             return false;
         }
     }
@@ -530,6 +534,35 @@ city_export(city_t *city)
     }
 
     return ret;
+}
+
+unsigned long long
+city_calc_iteration(city_t *city)
+{
+    unsigned long long result = 1;
+
+    for (int x = 0; x < city->size; x++) {
+        for (int y = 0; y < city->size; y++) {
+            tower_t *tower = city_get_tower(city, 0, x, y);
+
+            if (tower->height == 0) {
+                unsigned int v = 0;
+                int m = 1;
+
+                for (int h = 0; h < city->size; h++) {
+                    if ((tower->options & m) != 0) {
+                        v++;
+                    }
+
+                    m <<= 1;
+                }
+
+                result *= v;
+            }
+        }
+    }
+
+    return result;
 }
 
 void
