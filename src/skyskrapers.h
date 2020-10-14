@@ -22,7 +22,7 @@ extern "C" {
 typedef struct _city city_t;
 
 city_t *
-city_new();
+city_new(int size);
 
 void
 city_free(city_t *city);

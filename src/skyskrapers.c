@@ -15,9 +15,6 @@
 
 #include "skyskrapers.h"
 
-#define CITY_SIZE 4
-#define OPTIONS_MASK 0x0f
-
 bool
 city_is_valid(city_t *city);
 
@@ -41,12 +38,15 @@ enum _sides {
 };
 
 typedef struct _tower {
+    int size;
     int height;
     int options;
 } tower_t;
 
 typedef struct _city {
-    tower_t towers[CITY_SIZE][CITY_SIZE];
+    int size;
+    int mask;
+    tower_t *towers;
     int *clues;
     bool changed;
 } city_t;
@@ -86,9 +86,9 @@ city_solve(city_t *city)
 }
 
 int
-get_clue(int *clues, int side, int pos)
+city_get_clue(city_t *city, int side, int pos)
 {
-    return clues[side * CITY_SIZE + pos];
+    return city->clues[side * city->size + pos];
 }
 
 tower_t *
@@ -103,18 +103,18 @@ city_get_tower(city_t *city, int side, int pos, int index)
         break;
 
     case RIGHT:
-        x = CITY_SIZE - 1 - index;
+        x = city->size - 1 - index;
         y = pos;
         break;
 
     case BOTTOM:
-        x = CITY_SIZE - 1 - pos;
-        y = CITY_SIZE - 1 - index;
+        x = city->size - 1 - pos;
+        y = city->size - 1 - index;
         break;
 
     case LEFT:
         x = index;
-        y = CITY_SIZE - 1 - pos;
+        y = city->size - 1 - pos;
         break;
 
     default:
@@ -122,13 +122,13 @@ city_get_tower(city_t *city, int side, int pos, int index)
         abort();
     }
 
-    return &city->towers[x][y];
+    return &city->towers[x + y * city->size];
 }
 
 bool
 tower_set_height(tower_t *tower, int height)
 {
-    if (height < 1 || height > CITY_SIZE) {
+    if (height < 1 || height > tower->size) {
         fprintf(stderr, "ERROR\ntower_set_height : bad height=%i\n", height);
         abort();
     }
@@ -163,7 +163,7 @@ tower_and_options(tower_t *tower, int options)
 
     int t = 1;
 
-    for (int h = 1; h <= CITY_SIZE; h++) {
+    for (int h = 1; h <= tower->size; h++) {
         if (t == tower->options) {
             tower->height = h;
             break;
@@ -176,17 +176,28 @@ tower_and_options(tower_t *tower, int options)
 }
 
 city_t *
-city_new()
+city_new(int size)
 {
     city_t *ret = malloc(sizeof(city_t));
 
-    ret->changed = false;
     ret->clues = 0;
+    ret->size = size;
+    ret->changed = false;
+    ret->towers = malloc(size * size * sizeof(tower_t));
 
-    for (int x = 0; x < CITY_SIZE; x++) {
-        for (int y = 0; y < CITY_SIZE; y++) {
-            ret->towers[x][y].height = 0;
-            ret->towers[x][y].options = OPTIONS_MASK;
+    int m = 1;
+
+    for (int i = 0; i < size; i++) {
+        ret->mask |= m;
+        m <<= 1;
+    }
+
+    for (int x = 0; x < size; x++) {
+        for (int y = 0; y < size; y++) {
+            tower_t *tower = city_get_tower(ret, 0, x, y);
+            tower->size = size;
+            tower->height = 0;
+            tower->options = ret->mask;
         }
     }
 
@@ -196,6 +207,7 @@ city_new()
 void
 city_free(city_t *city)
 {
+    free(city->towers);
     free(city);
 }
 
@@ -205,32 +217,32 @@ city_load(city_t *city, int *clues)
     city->clues = clues;
 
     for (int side = 0; side < 4; side++) {
-        for (int pos = 0; pos < CITY_SIZE; pos++) {
-            int clue = get_clue(city->clues, side, pos);
+        for (int pos = 0; pos < city->size; pos++) {
+            int clue = city_get_clue(city, side, pos);
 
             if (clue == 0) {
                 continue;
             }
 
             tower_t *tower;
-            int options = OPTIONS_MASK;
+            int options = city->mask;
 
             if (clue == 1) {
                 tower = city_get_tower(city, side, pos, 0);
-                tower_set_height(tower, CITY_SIZE);
+                tower_set_height(tower, city->size);
                 options >>= 1;
 
-                for (int i = 1; i < CITY_SIZE; i++) {
+                for (int i = 1; i < city->size; i++) {
                     tower = city_get_tower(city, side, pos, i);
                     tower_and_options(tower, options);
                 }
-            } else if (clue == CITY_SIZE) {
-                for (int i = 0; i < CITY_SIZE; i++) {
+            } else if (clue == city->size) {
+                for (int i = 0; i < city->size; i++) {
                     tower = city_get_tower(city, side, pos, i);
                     tower_set_height(tower, i + 1);
                 }
             } else {
-                for (int i = CITY_SIZE; i > 0; i--) {
+                for (int i = city->size; i > 0; i--) {
                     if (i < clue) {
                         options >>= 1;
                     }
@@ -244,6 +256,7 @@ city_load(city_t *city, int *clues)
 }
 
 typedef struct _view_info {
+    int size;
     int highest;
     int visible;
     int foreground;
@@ -253,8 +266,9 @@ typedef struct _view_info {
 } view_info_t;
 
 void
-view_info_reset(view_info_t *info)
+view_info_reset(view_info_t *info, int size)
 {
+    info->size = size;
     info->highest = 0;
     info->visible = 0;
     info->foreground = 0;
@@ -272,7 +286,7 @@ view_info_add(view_info_t *info, int height, int options)
         if ((info->options & options) == 0) {
             info->valid = false;
         }
-    } else if (info->highest < CITY_SIZE) {
+    } else if (info->highest < info->size) {
         if (info->highest == 0) {
             info->foreground++;
         } else {
@@ -290,12 +304,12 @@ bool
 city_is_valid(city_t *city)
 {
     for (int side = 0; side < 4; side++) {
-        for (int pos = 0; pos < CITY_SIZE; pos++) {
+        for (int pos = 0; pos < city->size; pos++) {
 
             view_info_t info;
-            view_info_reset(&info);
+            view_info_reset(&info, city->size);
 
-            for (int i = 0; i < CITY_SIZE; i++) {
+            for (int i = 0; i < city->size; i++) {
                 tower_t *tower = city_get_tower(city, side, pos, i);
                 view_info_add(&info, tower->height, tower->options);
 
@@ -304,7 +318,7 @@ city_is_valid(city_t *city)
                 }
             }
 
-            int clue = get_clue(city->clues, side, pos);
+            int clue = city_get_clue(city, side, pos);
 
             if (clue == 0) {
                 continue;
@@ -334,9 +348,9 @@ city_is_solved(city_t *city)
         return false;
     }
 
-    for (int x = 0; x < CITY_SIZE; x++) {
-        for (int y = 0; y < CITY_SIZE; y++) {
-            if (city->towers[x][y].height == 0) {
+    for (int x = 0; x < city->size; x++) {
+        for (int y = 0; y < city->size; y++) {
+            if (city_get_tower(city, 0, x, y)->height == 0) {
                 return false;
             }
         }
@@ -357,16 +371,16 @@ bool
 city_do_obvious_highest(city_t *city)
 {
     bool changed = false;
-    int options = 1 << CITY_SIZE;
+    int options = 1 << city->size;
 
-    for (int h = CITY_SIZE; h > 0; h--) {
+    for (int h = city->size; h > 0; h--) {
         options >>= 1;
 
         for (int side = 0; side <= 1; side++) {
-            for (int pos = 0; pos < CITY_SIZE; pos++) {
+            for (int pos = 0; pos < city->size; pos++) {
                 tower_t *highest = 0;
 
-                for (int i = 0; i < CITY_SIZE; i++) {
+                for (int i = 0; i < city->size; i++) {
                     tower_t *tower = city_get_tower(city, side, pos, i);
 
                     if (tower->height == h) {
@@ -403,10 +417,10 @@ city_do_exclude(city_t *city)
     bool changed = false;
 
     for (int side = 0; side <= 1; side++) {
-        for (int pos = 0; pos < CITY_SIZE; pos++) {
-            int options = OPTIONS_MASK;
+        for (int pos = 0; pos < city->size; pos++) {
+            int options = city->mask;
 
-            for (int i = 0; i < CITY_SIZE; i++) {
+            for (int i = 0; i < city->size; i++) {
                 tower_t *tower = city_get_tower(city, side, pos, i);
 
                 if (tower->height != 0) {
@@ -414,7 +428,7 @@ city_do_exclude(city_t *city)
                 }
             }
 
-            for (int i = 0; i < CITY_SIZE; i++) {
+            for (int i = 0; i < city->size; i++) {
                 tower_t *tower = city_get_tower(city, side, pos, i);
 
                 if (tower->height == 0) {
@@ -437,19 +451,19 @@ city_do_first_of_many(city_t *city)
     bool changed = false;
 
     for (int side = 0; side < 4; side++) {
-        for (int pos = 0; pos < CITY_SIZE; pos++) {
-            int clue = get_clue(city->clues, side, pos);
+        for (int pos = 0; pos < city->size; pos++) {
+            int clue = city_get_clue(city, side, pos);
 
             if (clue < 2 || city_get_tower(city, side, pos, 0)->height != 0) {
                 continue;
             }
 
-            for (int i = 0; i < CITY_SIZE; i++) {
+            for (int i = 0; i < city->size; i++) {
                 tower_t *tower = city_get_tower(city, side, pos, i);
 
-                if (tower->options & (1 << (CITY_SIZE - 1))) {
+                if (tower->options & (1 << (city->size - 1))) {
                     if (tower_and_options(city_get_tower(city, side, pos, 0),
-                                          OPTIONS_MASK & (OPTIONS_MASK << (i + 1 - clue)))) {
+                                          city->mask & (city->mask << (i + 1 - clue)))) {
                         city->changed = true;
                         changed = true;
                     }
@@ -466,13 +480,13 @@ city_do_first_of_many(city_t *city)
 int **
 city_export(city_t *city)
 {
-    int **ret = malloc(sizeof(int *) * CITY_SIZE);
+    int **ret = malloc(sizeof(int *) * city->size);
 
-    for (int y = 0; y < CITY_SIZE; y++) {
-        int *t = malloc(sizeof(int) * CITY_SIZE);
+    for (int y = 0; y < city->size; y++) {
+        int *t = malloc(sizeof(int) * city->size);
         ret[y] = t;
 
-        for (int x = 0; x < CITY_SIZE; x++) {
+        for (int x = 0; x < city->size; x++) {
             tower_t *tower = city_get_tower(city, 0, x, y);
             t[x] = tower->height;
         }
@@ -488,23 +502,24 @@ city_print(city_t *city)
 
     fprintf(io, "==============================\n  ");
 
-    for (int x = 0; x < CITY_SIZE; x++) {
-        fprintf(io, "  %3.1i ", get_clue(city->clues, 0, x));
+    for (int x = 0; x < city->size; x++) {
+        fprintf(io, "  %3.1i ", city_get_clue(city, 0, x));
     }
 
     fprintf(io, "\n");
 
-    for (int y = 0; y < CITY_SIZE; y++) {
-        for (int b = CITY_SIZE; b > 0; b--) {
+    for (int y = 0; y < city->size; y++) {
+        for (int b = city->size; b > 0; b--) {
             if (b == 3) {
-                fprintf(io, "%3.1i", get_clue(city->clues, 3, CITY_SIZE - 1 - y));
+                fprintf(io, "%3.1i", city_get_clue(city, 3, city->size - 1 - y));
             } else {
                 fprintf(io, "   ");
             }
 
-            for (int x = 0; x < CITY_SIZE; x++) {
-                int h = city->towers[x][y].height;
-                int o = city->towers[x][y].options;
+            for (int x = 0; x < city->size; x++) {
+                tower_t *tower = city_get_tower(city, 0, x, y);
+                int h = tower->height;
+                int o = tower->options;
 
                 if (h == 0) {
                     fprintf(io, " %s ", (o & (1 << (b - 1))) == 0 ? " -- " : " ++ ");
@@ -514,21 +529,21 @@ city_print(city_t *city)
             }
 
             if (b == 3) {
-                fprintf(io, "%-3.1i", get_clue(city->clues, 1, y));
+                fprintf(io, "%-3.1i", city_get_clue(city, 1, y));
             }
 
             fprintf(io, "\n");
         }
 
-        if (y < CITY_SIZE - 1) {
+        if (y < city->size - 1) {
             fprintf(io, "\n");
         }
     }
 
     fprintf(io, "  ");
 
-    for (int x = 0; x < CITY_SIZE; x++) {
-        fprintf(io, "  %3.1i ", get_clue(city->clues, 2, CITY_SIZE - 1 - x));
+    for (int x = 0; x < city->size; x++) {
+        fprintf(io, "  %3.1i ", city_get_clue(city, 2, city->size - 1 - x));
     }
 
     fprintf(io, "\n------------------------------\n\n");
