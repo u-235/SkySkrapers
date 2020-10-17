@@ -31,8 +31,16 @@ city_do_obvious_highest(city_t *city);
 bool
 city_do_exclude(city_t *city);
 
+/**
+ * Ограничивает высоту недостроенных зданий в ряду с подсказкой "2". Высота этих зданий не может
+ * быть выше чем максимальная возможная высота первого здания минус один этаж.
+ *
+ * @param city Проверяемый город
+ *
+ * @return true если были изменения в @p city.
+ */
 bool
-city_do_first_of_many(city_t *city);
+city_do_first_of_two(city_t *city);
 
 unsigned long long
 city_calc_iteration(city_t *city);
@@ -77,7 +85,7 @@ city_solve(city_t *city)
             city_print(city);
         }
 
-        if (city_do_first_of_many(city)) {
+        if (city_do_first_of_two(city)) {
             fprintf(stdout, "First of two\n");
             city_print(city);
         }
@@ -179,6 +187,65 @@ tower_and_options(tower_t *tower, int options)
     }
 
     return old != tower->options;
+}
+
+/**
+ * Вычисление допустимой минимальной высоты здания.
+ *
+ * @param options Набор битовых флагов допустимых этажей.
+ * @param size Максимальная высота зданий.
+ *
+ * @return Минимальная высота здания, от 1 до @p size.
+ */
+int
+tower_get_min_height(int options, int size)
+{
+    if (options == 0) {
+        return 0;
+    }
+
+    int mask = 1;
+
+    for (int i = 1; i <= size; i++) {
+        if (options & mask) {
+            return i;
+        }
+
+        mask <<= 1;
+    }
+
+    // ! Error
+    return -1;
+}
+
+/**
+ * Вычисление допустимой максимальной высоты здания.
+ *
+ * @param options Набор битовых флагов допустимых этажей.
+ * @param size Максимальная высота зданий.
+ *
+ * @return Максимальная высота здания, от 1 до @p size.
+ */
+
+int
+tower_get_max_height(int options, int size)
+{
+    if (options == 0) {
+        return 0;
+    }
+
+    int mask = 1 << (size - 1);
+
+    for (int i = size; i > 0; i--) {
+        if (options & mask) {
+            return i;
+        }
+
+        mask >>= 1;
+    }
+
+    // ! Error
+    return -1;
 }
 
 city_t *
@@ -487,29 +554,37 @@ city_do_exclude(city_t *city)
 }
 
 bool
-city_do_first_of_many(city_t *city)
+city_do_first_of_two(city_t *city)
 {
     bool changed = false;
 
     for (int side = 0; side < 4; side++) {
         for (int pos = 0; pos < city->size; pos++) {
             int clue = city_get_clue(city, side, pos);
+            tower_t *tower = city_get_tower(city, side, pos, 0);
 
-            if (clue < 2 || city_get_tower(city, side, pos, 0)->height != 0) {
+            if (clue != 2 || tower->height != 0) {
                 continue;
             }
 
-            for (int i = 0; i < city->size; i++) {
-                tower_t *tower = city_get_tower(city, side, pos, i);
+            int top = 1 << (city->size - 1);
+            int mask = city->mask >> (city->size + 1 - tower_get_max_height(tower->options, city->size));
 
-                if (tower->options & (1 << (city->size - 1))) {
-                    if (tower_and_options(city_get_tower(city, side, pos, 0),
-                                          city->mask & (city->mask << (i + 1 - clue)))) {
-                        city->changed = true;
+            for (int i = 1; i < city->size; i++) {
+                tower = city_get_tower(city, side, pos, i);
+
+                if ((tower->options & top) != 0) {
+                    if (tower->height == 0 && tower_and_options(tower, top | mask)) {
                         changed = true;
+                        city->changed = true;
                     }
 
                     break;
+                }
+
+                if (tower_and_options(tower, mask)) {
+                    changed = true;
+                    city->changed = true;
                 }
             }
         }
