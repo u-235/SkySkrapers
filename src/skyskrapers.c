@@ -45,6 +45,9 @@ city_do_first_of_two(city_t *city);
 bool
 city_do_slope(city_t *city);
 
+bool
+city_do_bruteforce(city_t *city);
+
 unsigned long long
 city_calc_iteration(city_t *city);
 
@@ -56,6 +59,7 @@ typedef struct _tower {
     int size;
     int height;
     int options;
+    int weight;
 } tower_t;
 
 typedef struct _city {
@@ -100,7 +104,7 @@ city_solve(city_t *city)
 
         if (city_is_deadloop(city)) {
             fprintf(stdout, "The number of possible states is %llu\n", city_calc_iteration(city));
-            return false;
+            return city_do_bruteforce(city);
         }
     }
 
@@ -335,11 +339,11 @@ city_copy(city_t *dst, const city_t *src)
         ret = city_init(0, src->size);
     }
 
-    dst->size = src->size;
-    dst->mask = src->mask;
-    dst->clues = src->clues;
-    dst->changed = src->changed;
-    memcpy(dst->towers, src->towers, src->size * src->size * sizeof(tower_t));
+    ret->size = src->size;
+    ret->mask = src->mask;
+    ret->clues = src->clues;
+    ret->changed = src->changed;
+    memcpy(ret->towers, src->towers, src->size * src->size * sizeof(tower_t));
 
     return ret;
 }
@@ -814,6 +818,82 @@ city_do_slope(city_t *city)
 
     free(hills);
     return  changed;
+}
+
+bool
+city_do_bruteforce(city_t *city)
+{
+    tower_t *tower;
+    int x = 0, y = 0, max = 0;
+
+    /* Вычисление оптимальной точки для перебора.
+     * Сначала в каждой колонке этажи недостроенных зданий суммируются и эта сумма записывается
+     * в поле weight зданий колонки.*/
+    for (int iy = 0; iy < city->size; iy++) {
+        int sum = 0;
+
+        for (int ix = 0; ix < city->size; ix++) {
+            tower = city_get_tower(city, 0, ix, iy);
+
+            if (tower->height == 0) {
+                sum += tower->options;
+            }
+        }
+
+        for (int ix = 0; ix < city->size; ix++) {
+            city_get_tower(city, 0, ix, iy)->weight = sum;
+        }
+    }
+
+    max = 0;
+
+    /* Затем находится такие же суммы для строк и эти суммы плюсуются с полем weight. Попутно
+     * запоминается недостроенное здание с самым большим весом. */
+    for (int ix = 0; ix < city->size; ix++) {
+        int sum = 0;
+
+        for (int iy = 0; iy < city->size; iy++) {
+            tower = city_get_tower(city, 0, ix, iy);
+
+            if (tower->height == 0) {
+                sum += tower->options;
+            }
+        }
+
+        for (int iy = 0; iy < city->size; iy++) {
+            tower = city_get_tower(city, 0, ix, iy);
+            int w = tower->weight + sum;
+
+            if (tower->height == 0 && w > max) {
+                x = ix;
+                y = iy;
+                max = w;
+            }
+        }
+    }
+
+    /* Для возврата состояния города при неудачной попытке перебора делаем копию.
+     * А для перебора только допустимых высот заводим bit_enable. Это немного ускорит поиск. */
+    tower = city_get_tower(city, 0, x, y);
+    city_t *backup = city_copy(0, city);
+    int bit_enable = 1 << (city->size - 1);
+
+    for (int i = city->size; i > 0 ; i--) {
+        if ((bit_enable & tower->options) != 0) {
+            tower_set_height(tower, i);
+
+            if (city_solve(city)) {
+                city_free(backup);
+                return true;
+            }
+        }
+
+        bit_enable >>= 1;
+        city_copy(city, backup);
+    }
+
+    city_free(backup);
+    return false;
 }
 
 int **
