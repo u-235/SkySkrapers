@@ -42,6 +42,9 @@ city_do_exclude(city_t *city);
 bool
 city_do_first_of_two(city_t *city);
 
+bool
+city_do_slope(city_t *city);
+
 unsigned long long
 city_calc_iteration(city_t *city);
 
@@ -87,6 +90,11 @@ city_solve(city_t *city)
 
         if (city_do_first_of_two(city)) {
             fprintf(stdout, "First of two\n");
+            city_print(city);
+        }
+
+        if (city_do_slope(city)) {
+            fprintf(stdout, "Slope\n");
             city_print(city);
         }
 
@@ -246,6 +254,23 @@ tower_get_max_height(int options, int size)
 
     // ! Error
     return -1;
+}
+
+int
+tower_get_mask(int bottom, int top)
+{
+    if (bottom > top) {
+        // ! Error
+        return 0;
+    }
+
+    int mask = 1 << (bottom - 1);
+
+    for (; top > bottom; top--) {
+        mask |= mask << 1;
+    }
+
+    return mask;
 }
 
 city_t *
@@ -590,6 +615,172 @@ city_do_first_of_two(city_t *city)
         }
     }
 
+    return  changed;
+}
+
+typedef struct _hill {
+    int first;
+    int last;
+    int vacant;
+    int mask;
+    int shadow;
+    int top;
+    int bottom;
+} hill_t;
+
+bool
+city_do_slope(city_t *city)
+{
+    bool changed = false;
+
+    hill_t *hills = malloc(city->size * sizeof(hill_t));
+
+    for (int side = 0; side < 4; side++) {
+        for (int pos = 0; pos < city->size; pos++) {
+            int clue = city_get_clue(city, side, pos);
+
+            if (clue < 2) {
+                continue;
+            }
+
+            /* Получение индекса последнего доступного здания с максимальной высотой. */
+            int last_highest = city->size - 1;
+
+            for (int i = 0 ; i < city->size; i++) {
+                tower_t *t = city_get_tower(city, side, pos, i);
+
+                if (t->options & (city->mask ^ (city->mask >> 1))) {
+                    last_highest = i;
+                }
+
+                if (t->height == city->size) {
+                    break;
+                }
+            }
+
+            /* Получение индекса первого здания с максимальной высотой. */
+            int first_highest = 0;
+
+            for (int i = 0 ; i < city->size; i++) {
+                tower_t *t = city_get_tower(city, side, pos, i);
+
+                if (t->options & (city->mask ^ (city->mask >> 1))) {
+                    first_highest = i;
+                    break;
+                }
+            }
+
+            /* Количество однозначно видимых построенных зданий текущего ряда.*/
+            int total_visible = 0;
+            /* Общее количество строящихся зданий, которые могут повлиять на видимость.*/
+            int total_vacant = 0;
+            /* Нижняя граница влияния на видимость зданий. Что бы быть видимым, здание должно
+             * быть выше этой границы. С каждым новым видимым зданием граница как поднимается
+             * на один этаж или устанавливается по нижнему этажу этого здания, в зависимости
+             * что выше. Для нового фрагмента равняется максимальной высоте предыдущего видимого
+             * здания. */
+            int bottom_limit = 0;
+            /* Количество фрагментов рельефа. Каждый фрагмент начинается с недостроенного
+             * видимого здания и заканчиваетя недостроенным зданием, за которым следует
+             * построенное здание выше максимальной высоты фрагмента.*/
+            int hill_cnt = 0;
+            /* Количество зданий фрагмента рельефа, включая незаметные. */
+            int hill_size = 0;
+            int bit = 1;
+            memset(hills, 0, city->size * sizeof(hill_t));
+
+            /* Сбор статистики идёт до последнего возможно самого высокого здания. */
+            for (int i = 0; i  <= last_highest; i++) {
+                tower_t *tower = city_get_tower(city, side, pos, i);
+                int height = tower->height;
+                int options = tower->options;
+
+                if (height == city->size) {
+                    total_visible++;
+                    break;
+                } else if (height > hills[hill_cnt].top) {
+                    if (hill_size != 0) {
+                        hills[hill_cnt].last = hills[hill_cnt].first + hill_size - 1;
+                        hill_size = 0;
+                        hill_cnt++;
+                    }
+
+                    total_visible++;
+                    bottom_limit = height;
+                    hills[hill_cnt].top = height;
+                    bit = 1;
+                    continue;
+                } else if (height != 0 && hill_size == 0) {
+                    continue;
+                }
+
+                int bottom = tower_get_min_height(options, city->size);
+                int top = tower_get_max_height(options, city->size);
+
+                if (hill_size++ == 0) {
+                    hills[hill_cnt].first = i;
+                    hills[hill_cnt].shadow = bottom_limit;
+                }
+
+                if (top > hills[hill_cnt].bottom && top > bottom_limit) {
+                    bottom = hills[hill_cnt].bottom == 0 ? bottom :
+                             hills[hill_cnt].bottom < bottom ? hills[hill_cnt].bottom : bottom;
+                    hills[hill_cnt].bottom = bottom;
+
+                    bottom_limit++;
+                    bottom_limit = bottom_limit > bottom ? bottom_limit : bottom;
+                    hills[hill_cnt].top = hills[hill_cnt].top > top ? hills[hill_cnt].top : top;
+                    hills[hill_cnt].vacant++;
+                    total_vacant++;
+                    hills[hill_cnt].mask |= bit;
+                }
+
+                bit <<= 1;
+            }
+
+            if (hill_size) {
+                hills[hill_cnt].last = hills[hill_cnt].first + hill_size - 1;
+                hill_cnt++;
+            }
+
+            /* Статистика собрана. */
+
+            if (!total_vacant) {
+                continue;
+            }
+
+            if (total_vacant == clue - total_visible) {
+                /* Лестница (staircase) - ограничение и сверху и снизу. */
+                for (int hl_i = 0; hl_i < hill_cnt; hl_i++) {
+                    /* Не уверен, что это нужно. */
+                    if (hills[hl_i].vacant == 0) {
+                        continue;
+                    }
+
+                    int mask_and = tower_get_mask(hills[hl_i].bottom, hills[hl_i].top + 1 - hills[hl_i].vacant);
+                    int enable_bit = 1;
+                    int enable_mask = hills[hl_i].mask;
+
+                    for (int tw_i = hills[hl_i].first; tw_i <= hills[hl_i].last && tw_i <= first_highest; tw_i++) {
+                        if ((enable_mask & enable_bit) != 0) {
+                            tower_t *tower = city_get_tower(city, side, pos, tw_i);
+
+                            if (tower_and_options(tower, mask_and)) {
+                                changed = true;
+                                city->changed = true;
+                            }
+
+                            mask_and <<= 1;
+                        }
+
+                        enable_bit <<= 1;
+                    }
+                }
+            }
+        }
+    }
+
+    free(hills);
     return  changed;
 }
 
