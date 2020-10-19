@@ -918,6 +918,7 @@ unsigned long long
 city_calc_iteration(city_t *city)
 {
     unsigned long long result = 1;
+    unsigned i = 0;
 
     for (int x = 0; x < city->size; x++) {
         for (int y = 0; y < city->size; y++) {
@@ -934,13 +935,15 @@ city_calc_iteration(city_t *city)
 
                     m <<= 1;
                 }
-
+                i++;
                 result *= v;
             }
         }
     }
 
-    return result;
+    /* Раньше возвращался просто result.
+     * Как посчитать реальное значение я не знаю. */
+    return result * 2 / i / 3;
 }
 
 void

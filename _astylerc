@@ -1,5 +1,5 @@
 # astyle version 3.1
-# astyle --project src/*.c include/*h
+# astyle --project "src/*.c" "src/*.h"
 
 --max-code-length=96
 
@@ -32,3 +32,6 @@
 --unpad-paren
 
 --align-pointer=name
+
+--recursive
+
