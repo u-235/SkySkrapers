@@ -776,6 +776,38 @@ city_do_slope(city_t *city)
                         enable_bit <<= 1;
                     }
                 }
+            } else if (clue - total_visible == hill_cnt) {
+                /* Когда вариант остался один на каждый фрагмент - делаем одну ступеньку вниз
+                 * после первого недостроенного здания.*/
+                for (int hl_i = 0; hl_i < hill_cnt; hl_i++) {
+                    if (hills[hl_i].vacant == 0) {
+                        continue;
+                    }
+
+                    tower_t *tower = city_get_tower(city, side, pos, hills[hl_i].first);
+
+                    if (hills[hl_i].shadow >= tower_get_min_height(tower->options, tower->size)) {
+                        continue;
+                    }
+
+                    int mask_and = tower_get_mask(1, tower_get_max_height(tower->options, tower->size) - 1);
+                    int enable_bit = 1;
+                    int enable_mask = hills[hl_i].mask;
+
+                    for (int tw_i = hills[hl_i].first + 1; tw_i <= hills[hl_i].last
+                            && tw_i < first_highest; tw_i++) {
+                        if ((enable_mask & enable_bit) != 0) {
+                            tower_t *tower = city_get_tower(city, side, pos, tw_i);
+
+                            if (tower_and_options(tower, mask_and)) {
+                                changed = true;
+                                city->changed = true;
+                            }
+                        }
+
+                        enable_bit <<= 1;
+                    }
+                }
             }
         }
     }
