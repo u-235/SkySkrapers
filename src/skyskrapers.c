@@ -679,10 +679,9 @@ city_do_slope(city_t *city)
             /* Общее количество строящихся зданий, которые могут повлиять на видимость.*/
             int total_vacant = 0;
             /* Нижняя граница влияния на видимость зданий. Что бы быть видимым, здание должно
-             * быть выше этой границы. С каждым новым видимым зданием граница как поднимается
-             * на один этаж или устанавливается по нижнему этажу этого здания, в зависимости
-             * что выше. Для нового фрагмента равняется максимальной высоте предыдущего видимого
-             * здания. */
+             * быть выше этой границы. Если нижний этаж очередного видимого здания граница выше
+             * этой границы, то она приравнивается высоте этого этажа. Для нового фрагмента
+             * равняется максимальной высоте предыдущего видимого здания. */
             int bottom_limit = 0;
             /* Количество фрагментов рельефа. Каждый фрагмент начинается с недостроенного
              * видимого здания и заканчиваетя недостроенным зданием, за которым следует
@@ -718,21 +717,20 @@ city_do_slope(city_t *city)
                     continue;
                 }
 
-                int bottom = tower_get_min_height(options, city->size);
-                int top = tower_get_max_height(options, city->size);
-
                 if (hill_size++ == 0) {
                     hills[hill_cnt].first = i;
                     hills[hill_cnt].shadow = bottom_limit;
                 }
 
+                int bottom = tower_get_min_height(options, city->size);
+                int top = tower_get_max_height(options, city->size);
+
                 if (top > hills[hill_cnt].bottom && top > bottom_limit) {
+                    bottom_limit = bottom_limit > bottom ? bottom_limit : bottom;
                     bottom = hills[hill_cnt].bottom == 0 ? bottom :
                              hills[hill_cnt].bottom < bottom ? hills[hill_cnt].bottom : bottom;
                     hills[hill_cnt].bottom = bottom;
 
-                    bottom_limit++;
-                    bottom_limit = bottom_limit > bottom ? bottom_limit : bottom;
                     hills[hill_cnt].top = hills[hill_cnt].top > top ? hills[hill_cnt].top : top;
                     hills[hill_cnt].vacant++;
                     total_vacant++;
@@ -935,6 +933,7 @@ city_calc_iteration(city_t *city)
 
                     m <<= 1;
                 }
+
                 i++;
                 result *= v;
             }
