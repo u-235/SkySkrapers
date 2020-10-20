@@ -369,7 +369,10 @@ city_load(city_t *city, int *clues)
 
                 for (int i = 1; i < city->size; i++) {
                     tower = city_get_tower(city, side, pos, i);
-                    tower_and_options(tower, options);
+
+                    if (tower->height == 0) {
+                        tower_and_options(tower, options);
+                    }
                 }
             } else if (clue == city->size) {
                 for (int i = 0; i < city->size; i++) {
@@ -383,7 +386,10 @@ city_load(city_t *city, int *clues)
                     }
 
                     tower = city_get_tower(city, side, pos, i - 1);
-                    tower_and_options(tower, options);
+
+                    if (tower->height == 0) {
+                        tower_and_options(tower, options);
+                    }
                 }
             }
         }
