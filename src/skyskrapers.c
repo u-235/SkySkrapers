@@ -204,22 +204,21 @@ tower_and_options(tower_t *tower, int options)
 /**
  * Вычисление допустимой минимальной высоты здания.
  *
- * @param options Набор битовых флагов допустимых этажей.
- * @param size Максимальная высота зданий.
+ * @param tower Указатель на здание.
  *
- * @return Минимальная высота здания, от 1 до @p size.
+ * @return Минимальная высота здания, от 1 до @p tower->size.
  */
 int
-tower_get_min_height(int options, int size)
+tower_get_min_height(const tower_t *tower)
 {
-    if (options == 0) {
+    if (tower->options == 0) {
         return 0;
     }
 
     int mask = 1;
 
-    for (int i = 1; i <= size; i++) {
-        if (options & mask) {
+    for (int i = 1; i <= tower->size; i++) {
+        if (tower->options & mask) {
             return i;
         }
 
@@ -233,23 +232,22 @@ tower_get_min_height(int options, int size)
 /**
  * Вычисление допустимой максимальной высоты здания.
  *
- * @param options Набор битовых флагов допустимых этажей.
- * @param size Максимальная высота зданий.
+ * @param tower Указатель на здание.
  *
- * @return Максимальная высота здания, от 1 до @p size.
+ * @return Максимальная высота здания, от 1 до @p tower->size.
  */
 
 int
-tower_get_max_height(int options, int size)
+tower_get_max_height(const tower_t *tower)
 {
-    if (options == 0) {
+    if (tower->options == 0) {
         return 0;
     }
 
-    int mask = 1 << (size - 1);
+    int mask = 1 << (tower->size - 1);
 
-    for (int i = size; i > 0; i--) {
-        if (options & mask) {
+    for (int i = tower->size; i > 0; i--) {
+        if (tower->options & mask) {
             return i;
         }
 
@@ -597,7 +595,7 @@ city_do_first_of_two(city_t *city)
             }
 
             int top = 1 << (city->size - 1);
-            int mask = city->mask >> (city->size + 1 - tower_get_max_height(tower->options, city->size));
+            int mask = city->mask >> (city->size + 1 - tower_get_max_height(tower));
             int limit = tower->height;
 
             for (int i = 1; i < city->size; i++) {
@@ -702,7 +700,6 @@ city_do_slope(city_t *city)
             for (int i = 0; i  <= last_highest; i++) {
                 tower_t *tower = city_get_tower(city, side, pos, i);
                 int height = tower->height;
-                int options = tower->options;
 
                 if (height == city->size) {
                     total_visible++;
@@ -729,8 +726,8 @@ city_do_slope(city_t *city)
                     bottom_limit = 0;
                 }
 
-                int bottom = tower_get_min_height(options, city->size);
-                int top = tower_get_max_height(options, city->size);
+                int bottom = tower_get_min_height(tower);
+                int top = tower_get_max_height(tower);
 
                 if (top > hills[hill_cnt].shadow && top > bottom_limit) {
                     bottom_limit++;
@@ -798,11 +795,11 @@ city_do_slope(city_t *city)
 
                     tower_t *tower = city_get_tower(city, side, pos, hills[hl_i].first);
 
-                    if (hills[hl_i].shadow >= tower_get_min_height(tower->options, tower->size)) {
+                    if (hills[hl_i].shadow >= tower_get_min_height(tower)) {
                         continue;
                     }
 
-                    int mask_and = tower_get_mask(1, tower_get_max_height(tower->options, tower->size) - 1);
+                    int mask_and = tower_get_mask(1, tower_get_max_height(tower) - 1);
                     int enable_bit = 1;
                     int enable_mask = hills[hl_i].mask;
 
