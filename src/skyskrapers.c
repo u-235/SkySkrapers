@@ -598,9 +598,14 @@ city_do_first_of_two(city_t *city)
 
             int top = 1 << (city->size - 1);
             int mask = city->mask >> (city->size + 1 - tower_get_max_height(tower->options, city->size));
+            int limit = tower->height;
 
             for (int i = 1; i < city->size; i++) {
                 tower = city_get_tower(city, side, pos, i);
+
+                if (tower->height > limit) {
+                    break;
+                }
 
                 if ((tower->options & top) != 0) {
                     if (tower->height == 0 && tower_and_options(tower, top | mask)) {
