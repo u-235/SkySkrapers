@@ -759,7 +759,9 @@ city_do_slope(city_t *city)
                         continue;
                     }
 
-                    int mask_and = tower_get_mask(hills[hl_i].bottom, hills[hl_i].top + 1 - hills[hl_i].vacant);
+                    int lim = hills[hl_i].shadow + 1;
+                    int btm = hills[hl_i].bottom > lim ? hills[hl_i].bottom : lim;
+                    int mask_and = tower_get_mask(btm, hills[hl_i].top + 1 - hills[hl_i].vacant);
                     int enable_bit = 1;
                     int enable_mask = hills[hl_i].mask;
 
