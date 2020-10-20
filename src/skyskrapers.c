@@ -679,9 +679,10 @@ city_do_slope(city_t *city)
             /* Общее количество строящихся зданий, которые могут повлиять на видимость.*/
             int total_vacant = 0;
             /* Нижняя граница влияния на видимость зданий. Что бы быть видимым, здание должно
-             * быть выше этой границы. Если нижний этаж очередного видимого здания граница выше
-             * этой границы, то она приравнивается высоте этого этажа. Для нового фрагмента
-             * равняется максимальной высоте предыдущего видимого здания. */
+             * быть выше этой границы и выше тени от предыдущего фрагмента (см hill_t::shadow).
+             * С каждым новым видимым зданием граница инкрементируется а если нижний этаж
+             * этого здания выше границы, то приравнивается нижнему этажу. Для нового фрагмента
+             * равняется нулю. */
             int bottom_limit = 0;
             /* Количество фрагментов рельефа. Каждый фрагмент начинается с недостроенного
              * видимого здания и заканчиваетя недостроенным зданием, за которым следует
@@ -720,12 +721,14 @@ city_do_slope(city_t *city)
                 if (hill_size++ == 0) {
                     hills[hill_cnt].first = i;
                     hills[hill_cnt].shadow = bottom_limit;
+                    bottom_limit = 0;
                 }
 
                 int bottom = tower_get_min_height(options, city->size);
                 int top = tower_get_max_height(options, city->size);
 
-                if (top > hills[hill_cnt].bottom && top > bottom_limit) {
+                if (top > hills[hill_cnt].shadow && top > bottom_limit) {
+                    bottom_limit++;
                     bottom_limit = bottom_limit > bottom ? bottom_limit : bottom;
                     bottom = hills[hill_cnt].bottom == 0 ? bottom :
                              hills[hill_cnt].bottom < bottom ? hills[hill_cnt].bottom : bottom;
