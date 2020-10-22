@@ -421,6 +421,10 @@ view_info_reset(view_info_t *info, int size)
 void
 view_info_add(view_info_t *info, int height, int options)
 {
+    if (options == 0) {
+        info->valid = false;
+    }
+
     if (height != 0) {
         info->options ^= options;
 
@@ -465,7 +469,7 @@ city_is_valid(city_t *city)
                 continue;
             }
 
-            if (info.visible > clue) {
+            if (info.visible > clue + info.foreground + info.offstage) {
                 return false;
             }
 
@@ -564,6 +568,10 @@ city_do_exclude(city_t *city)
             for (int i = 0; i < city->size; i++) {
                 tower_t *tower = city_get_tower(city, side, pos, i);
 
+                //if (tower->options == 0) {
+                //    return false;
+                //}
+
                 if (tower->height != 0) {
                     options &= ~tower->options;
                 }
@@ -601,14 +609,18 @@ city_do_first_of_two(city_t *city)
             }
 
             int top = 1 << (city->size - 1);
-            int mask = city->mask >> (city->size + 1 - tower_get_max_height(tower));
-            int limit = tower->height;
+            int limit = tower_get_max_height(tower);
+            int mask = city->mask >> (city->size + 1 - limit);
 
             for (int i = 1; i < city->size; i++) {
                 tower = city_get_tower(city, side, pos, i);
 
                 if (tower->height > limit) {
                     break;
+                }
+
+                if (tower->height != 0) {
+                    continue;
                 }
 
                 if ((tower->options & top) != 0) {
@@ -780,7 +792,7 @@ city_do_slope(city_t *city)
                         if ((enable_mask & enable_bit) != 0) {
                             tower_t *tower = city_get_tower(city, side, pos, tw_i);
 
-                            if (tower_and_options(tower, mask_and)) {
+                            if (tower->height == 0 && tower_and_options(tower, mask_and)) {
                                 changed = true;
                                 city->changed = true;
                             }
@@ -795,7 +807,7 @@ city_do_slope(city_t *city)
                 /* Когда вариант остался один на каждый фрагмент - делаем одну ступеньку вниз
                  * после первого недостроенного здания.*/
                 for (int hl_i = 0; hl_i < hill_cnt; hl_i++) {
-                    if (hills[hl_i].vacant == 0) {
+                    if (hills[hl_i].vacant != 1) {
                         continue;
                     }
 
@@ -811,16 +823,16 @@ city_do_slope(city_t *city)
 
                     for (int tw_i = hills[hl_i].first + 1; tw_i <= hills[hl_i].last
                             && tw_i < first_highest; tw_i++) {
+                        enable_bit <<= 1;
+
                         if ((enable_mask & enable_bit) != 0) {
                             tower_t *tower = city_get_tower(city, side, pos, tw_i);
 
-                            if (tower_and_options(tower, mask_and)) {
+                            if (tower->height == 0 && tower_and_options(tower, mask_and)) {
                                 changed = true;
                                 city->changed = true;
                             }
                         }
-
-                        enable_bit <<= 1;
                     }
                 }
             }
