@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.0)
 
 project(skyskrapers LANGUAGES C)
 
+include_directories(include)
+
 add_compile_options(-g -O3 -fPIC)
 
 add_compile_options(

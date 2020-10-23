@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "skyskrapers.h"
+#include "skyskrapers/skyskrapers.h"
 
 #define MAX_PUZZLE 8u
 
