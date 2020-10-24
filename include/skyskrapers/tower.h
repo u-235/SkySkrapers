@@ -13,17 +13,43 @@
 #ifndef _TOWER_H
 #define _TOWER_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct _tower tower_t;
 
+extern tower_t *
+tower_init(tower_t *in, city_t *parent, int x, int y);
+
+extern tower_t *
+tower_copy(tower_t *dst, const tower_t *src);
+
+extern void
+tower_free(tower_t *street);
+
+extern int
+tower_get_size(const tower_t *tower);
+
 extern bool
 tower_set_height(tower_t *tower, int height);
 
+extern int
+tower_get_height(const tower_t *tower);
+
+extern bool
+tower_is_complete(tower_t *tower);
+
+extern bool
+tower_has_floors(const tower_t *tower, int options);
+
 extern bool
 tower_and_options(tower_t *tower, int options);
+
+extern int
+tower_get_options(tower_t *tower);
 
 /**
  * Вычисление допустимой минимальной высоты здания.
@@ -52,7 +78,10 @@ extern int
 tower_get_mask(int bottom, int top);
 
 typedef struct _tower {
+    city_t *parent;
     int size;
+    int x;
+    int y;
     int height;
     int options;
     int weight;

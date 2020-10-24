@@ -38,12 +38,10 @@ method_exclude(city_t *city)
             for (int i = 0; i < city->size; i++) {
                 tower_t *tower = city_get_tower(city, side, pos, i);
 
-                if (tower->height == 0) {
-                    if (tower_and_options(tower, options)) {
-                        changed = true;
-                        city->changed = true;
-                        //return true;
-                    }
+                if (tower_has_floors(tower, options) && tower_and_options(tower, options)) {
+                    changed = true;
+                    city->changed = true;
+                    //return true;
                 }
             }
         }

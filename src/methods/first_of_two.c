@@ -44,7 +44,7 @@ method_first_of_two(city_t *city)
                 }
 
                 if ((tower->options & top) != 0) {
-                    if (tower->height == 0 && tower_and_options(tower, top | mask)) {
+                    if (tower_has_floors(tower, top | mask) && tower_and_options(tower, top | mask)) {
                         changed = true;
                         city->changed = true;
                     }
@@ -52,7 +52,7 @@ method_first_of_two(city_t *city)
                     break;
                 }
 
-                if (tower_and_options(tower, mask)) {
+                if (tower_has_floors(tower, mask) && tower_and_options(tower, mask)) {
                     changed = true;
                     city->changed = true;
                 }

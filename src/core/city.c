@@ -45,10 +45,7 @@ city_init(city_t *in, int size)
 
     for (int x = 0; x < size; x++) {
         for (int y = 0; y < size; y++) {
-            tower_t *tower = city_get_tower(ret, 0, x, y);
-            tower->size = size;
-            tower->height = 0;
-            tower->options = ret->mask;
+            tower_init(city_get_tower(ret, 0, x, y), ret, x, y);
         }
     }
 
@@ -64,6 +61,10 @@ city_new(int size)
 void
 city_free(city_t *city)
 {
+    for (int i = 0; i < city->size * city->size; i ++) {
+        tower_free(&city->towers[i]);
+    }
+
     free(city->towers);
 
     if (city->must_free) {
@@ -84,7 +85,10 @@ city_copy(city_t *dst, const city_t *src)
     ret->mask = src->mask;
     ret->clues = src->clues;
     ret->changed = src->changed;
-    memcpy(ret->towers, src->towers, src->size * src->size * sizeof(tower_t));
+
+    for (int i = 0; i < src->size * src->size; i ++) {
+        tower_copy(&ret->towers[i], &src->towers[i]);
+    }
 
     return ret;
 }
@@ -113,7 +117,7 @@ city_load(city_t *city, int *clues)
                 for (int i = 1; i < city->size; i++) {
                     tower = city_get_tower(city, side, pos, i);
 
-                    if (tower->height == 0) {
+                    if (tower_has_floors(tower, options)) {
                         tower_and_options(tower, options);
                     }
                 }
@@ -130,7 +134,7 @@ city_load(city_t *city, int *clues)
 
                     tower = city_get_tower(city, side, pos, i - 1);
 
-                    if (tower->height == 0) {
+                    if (tower_has_floors(tower, options)) {
                         tower_and_options(tower, options);
                     }
                 }
@@ -298,10 +302,10 @@ city_get_tower(const city_t *city, int side, int pos, int index)
 int **
 city_export(city_t *city)
 {
-    int **ret = malloc(sizeof(int *) * city->size);
+    int **ret = malloc((unsigned int) city->size * sizeof(int *));
 
     for (int y = 0; y < city->size; y++) {
-        int *t = malloc(sizeof(int) * city->size);
+        int *t = malloc((unsigned int) city->size * sizeof(int));
         ret[y] = t;
 
         for (int x = 0; x < city->size; x++) {

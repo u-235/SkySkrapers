@@ -166,7 +166,7 @@ method_slope(city_t *city)
                         if ((enable_mask & enable_bit) != 0) {
                             tower_t *tower = city_get_tower(city, side, pos, tw_i);
 
-                            if (tower->height == 0 && tower_and_options(tower, mask_and)) {
+                            if (tower_has_floors(tower, mask_and) && tower_and_options(tower, mask_and)) {
                                 changed = true;
                                 city->changed = true;
                             }

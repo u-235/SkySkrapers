@@ -10,46 +10,103 @@
  * @copyright http://www.apache.org/licenses/LICENSE-2.0
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-#include "skyskrapers/skyskrapers.h"
+#include <assert.h>
+#include <stddef.h>
+#include "skyskrapers/city.h"
 #include "skyskrapers/tower.h"
+
+extern tower_t *
+tower_init(tower_t *in, city_t *parent, int x, int y)
+{
+    assert(parent != NULL);
+    assert(in != NULL);
+    assert(x >= 0 && x < parent->size);
+    assert(y >= 0 && y < parent->size);
+    tower_t *ret = in;
+    ret->parent = parent;
+    ret->size = parent->size;
+    ret->x = x;
+    ret->y = y;
+    ret->height = 0;
+    ret->options = parent->mask;
+    ret->weight = 0;
+
+    return ret;
+}
+
+tower_t *
+tower_copy(tower_t *dst, const tower_t *src)
+{
+    assert(dst != NULL);
+    tower_t *ret = dst;
+    assert(src != NULL);
+    assert(src->size == ret->size);
+
+    if (ret == src) {
+        return ret;
+    }
+
+    ret->parent = src->parent;
+    ret->x = src->x;
+    ret->y = src->y;
+    ret->height = src->height;
+    ret->options = src->options;
+    ret->weight = src->weight;
+
+    return ret;
+}
+
+void
+tower_free(tower_t *tower)
+{
+    assert(tower != NULL);
+}
+
+int
+tower_get_size(const tower_t *tower)
+{
+    assert(tower != NULL);
+    return tower->size;
+}
 
 bool
 tower_set_height(tower_t *tower, int height)
 {
-    if (height < 1 || height > tower->size) {
-        fprintf(stderr, "ERROR\ntower_set_height : bad height=%i\n", height);
-        abort();
-    }
-
-    if (tower->height != 0 && tower->height != height) {
-        fprintf(stderr,
-                "ERROR\ntower_set_height : height conflict old=%i, new=%i\n",
-                tower->height, height);
-        abort();
-    }
-
+    assert(tower != NULL);
+    assert(height > 0 && height <= tower->size);
+    assert(tower->height == 0 || tower->height == height);
     int old = tower->height;
     tower->height = height;
     tower->options = 1 << (height - 1);
     return old != tower->height;
 }
 
+extern int
+tower_get_height(const tower_t *tower)
+{
+    assert(tower != NULL);
+    return tower->height;
+}
+
+bool
+tower_is_complete(tower_t *tower)
+{
+    assert(tower != NULL);
+    return tower_get_height(tower) != 0;
+}
+
+extern bool
+tower_has_floors(const tower_t *tower, int options)
+{
+    assert(tower != NULL);
+    return (tower->options & options) != 0;
+}
+
 bool
 tower_and_options(tower_t *tower, int options)
 {
-    if (tower->height != 0) {
-        fprintf(stdout, "WARNING\ntower_and_options : tower is finished\n");
-    }
-
-    if ((tower->options & options) == 0) {
-        fprintf(stdout, "ERROR\ntower_and_options : no options\n");
-        //abort();
-    }
-
+    assert(tower != NULL);
+    assert(tower_has_floors(tower, options));
     int old = tower->options;
     tower->options &= options;
 
@@ -67,6 +124,13 @@ tower_and_options(tower_t *tower, int options)
     return old != tower->options;
 }
 
+int
+tower_get_options(tower_t *tower)
+{
+    assert(tower != NULL);
+    return tower->options;
+}
+
 /**
  * Вычисление допустимой минимальной высоты здания.
  *
@@ -77,22 +141,21 @@ tower_and_options(tower_t *tower, int options)
 int
 tower_get_min_height(const tower_t *tower)
 {
+    assert(tower != NULL);
+
     if (tower->options == 0) {
         return 0;
     }
 
     int mask = 1;
+    int ret = 1;
 
-    for (int i = 1; i <= tower->size; i++) {
-        if (tower->options & mask) {
-            return i;
-        }
-
+    while (ret <= tower->size && (tower->options & mask) == 0) {
+        ret++;
         mask <<= 1;
     }
 
-    // ! Error
-    return -1;
+    return ret;
 }
 
 /**
@@ -106,22 +169,21 @@ tower_get_min_height(const tower_t *tower)
 int
 tower_get_max_height(const tower_t *tower)
 {
+    assert(tower != NULL);
+
     if (tower->options == 0) {
         return 0;
     }
 
     int mask = 1 << (tower->size - 1);
+    int ret = tower->size;
 
-    for (int i = tower->size; i > 0; i--) {
-        if (tower->options & mask) {
-            return i;
-        }
-
+    while (ret > 0 && (tower->options & mask) == 0) {
+        ret--;
         mask >>= 1;
     }
 
-    // ! Error
-    return -1;
+    return ret;
 }
 
 int
