@@ -2,7 +2,7 @@
 
 /**
  * @file
- * @brief Решение головоломки SkySkrapers
+ * @brief Решение головоломки SkyScrapers
  * @details
  *
  * @date создан 25.09.2020

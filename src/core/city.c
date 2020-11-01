@@ -2,7 +2,7 @@
 
 /**
  * @file
- * @brief Решение головоломки SkySkrapers
+ * @brief Решение головоломки SkyScrapers
  * @details
  *
  * @date создан 18.10.2020
@@ -10,16 +10,17 @@
  * @copyright http://www.apache.org/licenses/LICENSE-2.0
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
 #include "skyskrapers/skyskrapers.h"
 #include "skyskrapers/city.h"
+#include "skyskrapers/street.h"
 #include "skyskrapers/tower.h"
 
 city_t *
-city_init(city_t *in, int size)
+city_make(city_t *in, int size)
 {
     city_t *ret;
 
@@ -31,10 +32,8 @@ city_init(city_t *in, int size)
         ret->must_free = false;
     }
 
-    ret->clues = 0;
     ret->size = size;
     ret->changed = false;
-    ret->towers = malloc(size * size * sizeof(tower_t));
 
     int m = 1;
 
@@ -43,9 +42,25 @@ city_init(city_t *in, int size)
         m <<= 1;
     }
 
+    size_t sz = (size_t) size;
+    ret->towers = malloc(sz * sz * sizeof(tower_t));
+
     for (int x = 0; x < size; x++) {
         for (int y = 0; y < size; y++) {
-            tower_init(city_get_tower(ret, 0, x, y), ret, x, y);
+            tower_make(city_get_tower(ret, 0, x, y), ret, x, y);
+        }
+    }
+
+    ret->need_update = malloc(4 * sz * sizeof(bool));
+    ret->need_handle = malloc(4 * sz * sizeof(bool));
+    ret->streets = malloc(4 * sz * sizeof(street_t));
+
+    for (int side = 0; side < 4; side ++) {
+        for (int pos = 0; pos < size; pos ++) {
+            int i = side * size + pos;
+            ret->need_update[i] = false;
+            ret->need_handle[i] = false;
+            street_make(&ret->streets[i], ret, side, pos);
         }
     }
 
@@ -55,12 +70,20 @@ city_init(city_t *in, int size)
 city_t *
 city_new(int size)
 {
-    return city_init(0, size);
+    return city_make(0, size);
 }
 
 void
 city_free(city_t *city)
 {
+    for (int i = 0; i < 4 * city->size; i ++) {
+        street_free(&city->streets[i]);
+    }
+
+    free(city->streets);
+    free(city->need_update);
+    free(city->need_handle);
+
     for (int i = 0; i < city->size * city->size; i ++) {
         tower_free(&city->towers[i]);
     }
@@ -78,25 +101,65 @@ city_copy(city_t *dst, const city_t *src)
     city_t *ret = dst;
 
     if (dst == 0) {
-        ret = city_init(0, src->size);
+        ret = city_make(0, src->size);
     }
 
     ret->size = src->size;
     ret->mask = src->mask;
-    ret->clues = src->clues;
     ret->changed = src->changed;
 
     for (int i = 0; i < src->size * src->size; i ++) {
         tower_copy(&ret->towers[i], &src->towers[i]);
     }
 
+    for (int i = 0; i < 4 * src->size; i ++) {
+        ret->need_update[i] = src->need_update[i];
+        ret->need_handle[i] = src->need_handle[i];
+        street_copy(&ret->streets[i], &src->streets[i]);
+    }
+
     return ret;
+}
+
+void
+city_notify_of_tower_change(city_t *city, int x, int y)
+{
+    assert(city != NULL);
+    int sz = city->size;
+    assert(x >= 0 && x < city->size);
+    assert(y >= 0 && y < city->size);
+    /* Side::TOP */
+    int i = x;
+    city->need_update[i] = true;
+    city->need_handle[i] = true;
+    /* Side::RIGHT */
+    i = sz + y;
+    city->need_update[i] = true;
+    city->need_handle[i] = true;
+    /* Side::BOTTOM */
+    i = 3 * sz - x - 1;
+    city->need_update[i] = true;
+    city->need_handle[i] = true;
+    /* Side::LEFT */
+    i = 4 * sz - y - 1;
+    city->need_update[i] = true;
+    city->need_handle[i] = true;
 }
 
 void
 city_load(city_t *city, int *clues)
 {
-    city->clues = clues;
+    for (int side = 0; side < 4; side++) {
+        for (int pos = 0; pos < city->size; pos++) {
+            int i = side * city->size + pos;
+            city->streets[i].clue = clues[i];
+
+            if (clues[i] != 0) {
+                city->need_update[i] = true;
+                city->need_handle[i] = true;
+            }
+        }
+    }
 
     for (int side = 0; side < 4; side++) {
         for (int pos = 0; pos < city->size; pos++) {
@@ -262,7 +325,7 @@ city_is_deadloop(city_t *city)
 int
 city_get_clue(const city_t *city, int side, int pos)
 {
-    return city->clues[side * city->size + pos];
+    return city->streets[side * city->size + pos].clue;
 }
 
 tower_t *
@@ -402,5 +465,4 @@ city_print(city_t *city)
     }
 
     fprintf(io, "\n------------------------------\n\n");
-    fflush(io);
 }

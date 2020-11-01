@@ -2,7 +2,7 @@
 
 /**
  * @file
- * @brief Решение головоломки SkySkrapers
+ * @brief Решение головоломки SkyScrapers
  * @details
  *
  * @date создан 18.10.2020
@@ -21,13 +21,18 @@ extern "C" {
 
 typedef struct _tower tower_t;
 
+typedef struct _street street_t;
+
 typedef struct _city city_t;
 
 city_t *
-city_init(city_t *in, int size);
+city_make(city_t *in, int size);
 
 extern city_t *
 city_copy(city_t *dst, const city_t *src);
+
+extern void
+city_notify_of_tower_change(city_t *city, int x, int y);
 
 extern bool
 city_is_valid(const city_t *city);
@@ -47,11 +52,41 @@ city_get_clue(const city_t *city, int side, int pos);
 extern tower_t *
 city_get_tower(const city_t *city, int side, int pos, int index);
 
+/**
+ * Represents a puzzle.
+ */
 typedef struct _city {
+    /** Size of puzzle. This field is constant. */
     int size;
+    /** Mask for all floors. */
     int mask;
+    /** Array of street_t.
+     *
+     * Size is city_t::size ^ 2.
+     */
     tower_t *towers;
-    int *clues;
+
+    /** Array of street_t.
+     *
+     * Size is 4 times city_t::size.
+     */
+    street_t *streets;
+    /**
+     * Array of flags indicating the need to update the corresponding instance from
+     * city_t::streets.
+     *
+     * Size is 4 times city_t::size.
+     */
+    bool *need_update;
+    /**
+     * Array of flags indicating the need to process the corresponding instance from
+     * city_t::streets.
+     *
+     * Size is 4 times city_t::size.
+     */
+    bool *need_handle;
+
+    /** @deprecated */
     bool changed;
     bool must_free;
 } city_t;

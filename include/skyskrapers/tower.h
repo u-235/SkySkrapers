@@ -2,7 +2,7 @@
 
 /**
  * @file
- * @brief Решение головоломки SkySkrapers
+ * @brief Решение головоломки SkyScrapers
  * @details
  *
  * @date создан 18.10.2020
@@ -22,7 +22,7 @@ extern "C" {
 typedef struct _tower tower_t;
 
 extern tower_t *
-tower_init(tower_t *in, city_t *parent, int x, int y);
+tower_make(tower_t *in, city_t *parent, int x, int y);
 
 extern tower_t *
 tower_copy(tower_t *dst, const tower_t *src);

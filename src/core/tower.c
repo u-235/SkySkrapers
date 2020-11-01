@@ -2,7 +2,7 @@
 
 /**
  * @file
- * @brief Решение головоломки SkySkrapers
+ * @brief Решение головоломки SkyScrapers
  * @details
  *
  * @date создан 18.10.2020
@@ -16,7 +16,7 @@
 #include "skyskrapers/tower.h"
 
 extern tower_t *
-tower_init(tower_t *in, city_t *parent, int x, int y)
+tower_make(tower_t *in, city_t *parent, int x, int y)
 {
     assert(parent != NULL);
     assert(in != NULL);
@@ -78,7 +78,13 @@ tower_set_height(tower_t *tower, int height)
     int old = tower->height;
     tower->height = height;
     tower->options = 1 << (height - 1);
-    return old != tower->height;
+    bool changed = old != tower->height;
+
+    if (changed) {
+        city_notify_of_tower_change(tower->parent, tower->x, tower->y);
+    }
+
+    return changed;
 }
 
 extern int
@@ -121,7 +127,13 @@ tower_and_options(tower_t *tower, int options)
         t <<= 1;
     }
 
-    return old != tower->options;
+    bool changed = old != tower->options;
+
+    if (changed) {
+        city_notify_of_tower_change(tower->parent, tower->x, tower->y);
+    }
+
+    return changed;
 }
 
 int
