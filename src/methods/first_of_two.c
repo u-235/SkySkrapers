@@ -10,53 +10,48 @@
  * @copyright http://www.apache.org/licenses/LICENSE-2.0
  */
 
-#include "skyskrapers/city.h"
+#include "skyskrapers/street.h"
 #include "skyskrapers/tower.h"
 #include "skyskrapers/methods.h"
 
 bool
-method_first_of_two(city_t *city)
+method_first_of_two(const street_t *street)
 {
     bool changed = false;
+    int sz = street->size;
 
-    for (int side = 0; side < 4; side++) {
-        for (int pos = 0; pos < city->size; pos++) {
-            int clue = city_get_clue(city, side, pos);
-            tower_t *tower = city_get_tower(city, side, pos, 0);
+    int clue = street_get_clue(street);
+    tower_t *tower = street_get_tower(street, 0);
 
-            if (clue != 2 || tower->height != 0) {
-                continue;
+    if (clue != 2 || tower_is_complete(tower)) {
+        return false;
+    }
+
+    int top = tower_get_mask(sz, sz);
+    int limit = tower_get_max_height(tower);
+    int mask = tower_get_mask(1, limit - 1);
+
+    for (int i = 1; i < sz; i++) {
+        tower = street_get_tower(street, i);
+
+        if (tower_get_height(tower) > limit) {
+            break;
+        }
+
+        if (tower_is_complete(tower)) {
+            continue;
+        }
+
+        if (tower_has_floors(tower, top)) {
+            if (tower_has_floors(tower, top | mask) && tower_and_options(tower, top | mask)) {
+                changed = true;
             }
 
-            int top = 1 << (city->size - 1);
-            int limit = tower_get_max_height(tower);
-            int mask = city->mask >> (city->size + 1 - limit);
+            break;
+        }
 
-            for (int i = 1; i < city->size; i++) {
-                tower = city_get_tower(city, side, pos, i);
-
-                if (tower->height > limit) {
-                    break;
-                }
-
-                if (tower->height != 0) {
-                    continue;
-                }
-
-                if ((tower->options & top) != 0) {
-                    if (tower_has_floors(tower, top | mask) && tower_and_options(tower, top | mask)) {
-                        changed = true;
-                        city->changed = true;
-                    }
-
-                    break;
-                }
-
-                if (tower_has_floors(tower, mask) && tower_and_options(tower, mask)) {
-                    changed = true;
-                    city->changed = true;
-                }
-            }
+        if (tower_has_floors(tower, mask) && tower_and_options(tower, mask)) {
+            changed = true;
         }
     }
 

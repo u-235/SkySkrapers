@@ -40,9 +40,6 @@ city_is_valid(const city_t *city);
 extern bool
 city_is_solved(const city_t *city);
 
-extern bool
-city_is_deadloop(city_t *city);
-
 extern unsigned long long
 city_calc_iteration(const city_t *city);
 
@@ -86,8 +83,6 @@ typedef struct _city {
      */
     bool *need_handle;
 
-    /** @deprecated */
-    bool changed;
     bool must_free;
 } city_t;
 

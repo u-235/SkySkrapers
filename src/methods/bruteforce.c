@@ -2,7 +2,7 @@
 
 /**
  * @file
- * @brief Решение головоломки SkySkrapers
+ * @brief Решение головоломки SkyScrapers
  * @details
  *
  * @date создан 18.10.2020
@@ -30,8 +30,8 @@ method_bruteforce(city_t *city)
         for (int ix = 0; ix < city->size; ix++) {
             tower = city_get_tower(city, 0, ix, iy);
 
-            if (tower->height == 0) {
-                sum += tower->options;
+            if (!tower_is_complete(tower)) {
+                sum += tower_get_options(tower);
             }
         }
 
@@ -50,8 +50,8 @@ method_bruteforce(city_t *city)
         for (int iy = 0; iy < city->size; iy++) {
             tower = city_get_tower(city, 0, ix, iy);
 
-            if (tower->height == 0) {
-                sum += tower->options;
+            if (!tower_is_complete(tower)) {
+                sum += tower_get_options(tower);
             }
         }
 
@@ -59,7 +59,7 @@ method_bruteforce(city_t *city)
             tower = city_get_tower(city, 0, ix, iy);
             int w = tower->weight + sum;
 
-            if (tower->height == 0 && w > max) {
+            if (!tower_is_complete(tower) && w > max) {
                 x = ix;
                 y = iy;
                 max = w;
@@ -74,7 +74,7 @@ method_bruteforce(city_t *city)
     int bit_enable = 1 << (city->size - 1);
 
     for (int i = city->size; i > 0 ; i--) {
-        if ((bit_enable & tower->options) != 0) {
+        if (tower_has_floors(tower, bit_enable)) {
             tower_set_height(tower, i);
 
             if (city_solve(city)) {

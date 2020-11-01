@@ -8,7 +8,8 @@ set(SOURCE_C
    methods/exclude.c
    methods/obvious.c
    methods/first_of_two.c
-   methods/slope.c
+   methods/staircase.c
+   methods/step_down.c
    methods/bruteforce.c)
 
 add_executable(skyskrapers ${SOURCE_C})

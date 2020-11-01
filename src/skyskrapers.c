@@ -2,7 +2,7 @@
 
 /**
  * @file
- * @brief Решение головоломки SkySkrapers
+ * @brief Решение головоломки SkyScrapers
  * @details
  *
  * @date создан 25.09.2020
@@ -14,41 +14,53 @@
 
 #include "skyskrapers/skyskrapers.h"
 #include "skyskrapers/city.h"
+#include "skyskrapers/street.h"
 #include "skyskrapers/methods.h"
+
+struct _handler {
+    char *name;
+    bool (* func)(const street_t *street);
+} handlers[] = {
+    {"obvious", method_obvious},
+    {"exclude", method_exclude},
+    {"first of two", method_first_of_two},
+    {"staircase", method_staircase},
+    {"step_down", method_step_down}
+};
+
+bool
+city_solve_step(city_t *city)
+{
+    for (int i = 0; i < 4 * city->size; i++) {
+        if (!city->need_handle[i]) {
+            continue;
+        }
+
+        city->need_handle[i] = false;
+        street_t *street = &city->streets[i];
+
+        for (size_t j = 0; j < sizeof(handlers) / sizeof(struct _handler); j++) {
+            if (handlers[j].func(street)) {
+                fprintf(stdout, "Pass %s\n", handlers[j].name);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
 
 bool
 city_solve(city_t *city)
 {
-    for (int pass = 1; !city_is_solved(city); pass++) {
+    while (!city_is_solved(city)) {
         if (!city_is_valid(city)) {
             fprintf(stdout, "ERROR\nInvalid city.\n");
             return false;
         }
 
-        fprintf(stdout, "Pass %i\n", pass);
-
-        if (method_obvious(city)) {
-            fprintf(stdout, "Obvious highest\n");
-            city_print(city);
-        }
-
-        if (method_exclude(city)) {
-            fprintf(stdout, "Exclude\n");
-            city_print(city);
-        }
-
-        if (method_first_of_two(city)) {
-            fprintf(stdout, "First of two\n");
-            city_print(city);
-        }
-
-        if (method_slope(city)) {
-            fprintf(stdout, "Slope\n");
-            city_print(city);
-        }
-
-        if (city_is_deadloop(city)) {
-            fprintf(stdout, "The number of possible states is %llu\n", city_calc_iteration(city));
+        if (!city_solve_step(city)) {
+            fprintf(stdout, "Bruteforce.\n");
             return method_bruteforce(city);
         }
     }

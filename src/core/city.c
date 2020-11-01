@@ -33,7 +33,6 @@ city_make(city_t *in, int size)
     }
 
     ret->size = size;
-    ret->changed = false;
 
     int m = 1;
 
@@ -106,7 +105,6 @@ city_copy(city_t *dst, const city_t *src)
 
     ret->size = src->size;
     ret->mask = src->mask;
-    ret->changed = src->changed;
 
     for (int i = 0; i < src->size * src->size; i ++) {
         tower_copy(&ret->towers[i], &src->towers[i]);
@@ -206,94 +204,25 @@ city_load(city_t *city, int *clues)
     }
 }
 
-typedef struct _view_info {
-    int size;
-    int highest;
-    int visible;
-    int foreground;
-    int offstage;
-    bool valid;
-    int options;
-} view_info_t;
-
-void
-view_info_reset(view_info_t *info, int size)
-{
-    info->size = size;
-    info->highest = 0;
-    info->visible = 0;
-    info->foreground = 0;
-    info->offstage = 0;
-    info->valid = true;
-    info->options = 0;
-}
-
-void
-view_info_add(view_info_t *info, int height, int options)
-{
-    if (options == 0) {
-        info->valid = false;
-    }
-
-    if (height != 0) {
-        info->options ^= options;
-
-        if ((info->options & options) == 0) {
-            info->valid = false;
-        }
-    } else if (info->highest < info->size) {
-        if (info->highest == 0) {
-            info->foreground++;
-        } else {
-            info->offstage++;
-        }
-    }
-
-    if (info->highest < height) {
-        info->visible++;
-        info->highest = height;
-    }
-}
-
 bool
 city_is_valid(const city_t *city)
 {
-    for (int side = 0; side < 4; side++) {
-        for (int pos = 0; pos < city->size; pos++) {
+    bool valid = true;
 
-            view_info_t info;
-            view_info_reset(&info, city->size);
+    for (int i = 0; i < 4 * city->size; i ++) {
+        street_t *street = &city->streets[i];
 
-            for (int i = 0; i < city->size; i++) {
-                tower_t *tower = city_get_tower(city, side, pos, i);
-                view_info_add(&info, tower->height, tower->options);
+        if (city->need_update[i]) {
+            street_update(street);
+            city->need_update[i] = false;
+        }
 
-                if (!info.valid) {
-                    return false;
-                }
-            }
-
-            int clue = city_get_clue(city, side, pos);
-
-            if (clue == 0) {
-                continue;
-            }
-
-            if (info.visible > clue + info.foreground + info.offstage) {
-                return false;
-            }
-
-            if (info.visible + info.foreground + info.offstage < clue) {
-                return false;
-            }
-
-            if ((info.visible + info.foreground) == 0 && info.offstage != clue) {
-                return false;
-            }
+        if (!street->valid) {
+            valid = false;
         }
     }
 
-    return  true;
+    return  valid;
 }
 
 bool
@@ -312,14 +241,6 @@ city_is_solved(const city_t *city)
     }
 
     return true;
-}
-
-bool
-city_is_deadloop(city_t *city)
-{
-    bool changes = city->changed;
-    city->changed = false;
-    return !changes;
 }
 
 int
