@@ -33,14 +33,7 @@ city_make(city_t *in, int size)
     }
 
     ret->size = size;
-
-    int m = 1;
-
-    for (int i = 0; i < size; i++) {
-        ret->mask |= m;
-        m <<= 1;
-    }
-
+    ret->mask = tower_get_mask(1, size);
     size_t sz = (size_t) size;
     ret->towers = malloc(sz * sz * sizeof(tower_t));
 
@@ -75,6 +68,8 @@ city_new(int size)
 void
 city_free(city_t *city)
 {
+    assert(city != NULL);
+
     for (int i = 0; i < 4 * city->size; i ++) {
         street_free(&city->streets[i]);
     }
@@ -97,6 +92,7 @@ city_free(city_t *city)
 city_t *
 city_copy(city_t *dst, const city_t *src)
 {
+    assert(src != NULL);
     city_t *ret = dst;
 
     if (dst == 0) {
@@ -124,8 +120,8 @@ city_notify_of_tower_change(city_t *city, int x, int y)
 {
     assert(city != NULL);
     int sz = city->size;
-    assert(x >= 0 && x < city->size);
-    assert(y >= 0 && y < city->size);
+    assert(x >= 0 && x < sz);
+    assert(y >= 0 && y < sz);
     /* Side::TOP */
     int i = x;
     city->need_update[i] = true;
@@ -145,68 +141,51 @@ city_notify_of_tower_change(city_t *city, int x, int y)
 }
 
 void
-city_load(city_t *city, int *clues)
+city_notify_of_street_change(city_t *city, int side, int pos)
 {
-    for (int side = 0; side < 4; side++) {
-        for (int pos = 0; pos < city->size; pos++) {
-            int i = side * city->size + pos;
-            city->streets[i].clue = clues[i];
+    assert(city != NULL);
+    assert(side >= 0 && side < 4);
+    assert(pos >= 0 && pos < city->size);
+    int i = side * city->size + pos;
+    city->need_update[i] = true;
+    city->need_handle[i] = true;
 
-            if (clues[i] != 0) {
-                city->need_update[i] = true;
-                city->need_handle[i] = true;
-            }
+}
+
+static void
+load_clues(city_t *city, const int *clues, bool constraint)
+{
+    for (int i = 0; i < 4 * city->size; i++) {
+        street_t *street = &city->streets[i];
+        int clue = clues[i];
+        street_set_clue(street, clue);
+
+        if (constraint) {
+            street_fast_constraint(street);
         }
     }
+}
 
-    for (int side = 0; side < 4; side++) {
-        for (int pos = 0; pos < city->size; pos++) {
-            int clue = city_get_clue(city, side, pos);
+void
+city_load_clues(city_t *city, const int *clues)
+{
+    assert(city != NULL);
+    assert(clues != NULL);
+    load_clues(city, clues, true);
+}
 
-            if (clue == 0) {
-                continue;
-            }
-
-            tower_t *tower;
-            int options = city->mask;
-
-            if (clue == 1) {
-                tower = city_get_tower(city, side, pos, 0);
-                tower_set_height(tower, city->size);
-                options >>= 1;
-
-                for (int i = 1; i < city->size; i++) {
-                    tower = city_get_tower(city, side, pos, i);
-
-                    if (tower_has_floors(tower, options)) {
-                        tower_and_options(tower, options);
-                    }
-                }
-            } else if (clue == city->size) {
-                for (int i = 0; i < city->size; i++) {
-                    tower = city_get_tower(city, side, pos, i);
-                    tower_set_height(tower, i + 1);
-                }
-            } else {
-                for (int i = city->size; i > 0; i--) {
-                    if (i < clue) {
-                        options >>= 1;
-                    }
-
-                    tower = city_get_tower(city, side, pos, i - 1);
-
-                    if (tower_has_floors(tower, options)) {
-                        tower_and_options(tower, options);
-                    }
-                }
-            }
-        }
-    }
+void
+city_set_clues(city_t *city, const int *clues)
+{
+    assert(city != NULL);
+    assert(clues != NULL);
+    load_clues(city, clues, false);
 }
 
 bool
 city_is_valid(const city_t *city)
 {
+    assert(city != NULL);
     bool valid = true;
 
     for (int i = 0; i < 4 * city->size; i ++) {
@@ -228,6 +207,8 @@ city_is_valid(const city_t *city)
 bool
 city_is_solved(const city_t *city)
 {
+    assert(city != NULL);
+
     if (!city_is_valid(city)) {
         return false;
     }
@@ -243,15 +224,17 @@ city_is_solved(const city_t *city)
     return true;
 }
 
-int
+static int
 city_get_clue(const city_t *city, int side, int pos)
 {
+    assert(city != NULL);
     return city->streets[side * city->size + pos].clue;
 }
 
 tower_t *
 city_get_tower(const city_t *city, int side, int pos, int index)
 {
+    assert(city != NULL);
     int x = 0, y = 0;
 
     switch (side) {
@@ -283,27 +266,106 @@ city_get_tower(const city_t *city, int side, int pos, int index)
     return &city->towers[x + y * city->size];
 }
 
+/**
+ * Возвращает динамический двухмерный массив с высотами башен. Если башня недостроена, то высота
+ * равна нулю. Если массив больше не нужен, то он должен быть удален функцией free().
+ *
+ * @param [in] city Объект для копирования высот в массив.
+ * @return Динамический двухмерный массив с высотами башен.
+ */
 int **
-city_export(city_t *city)
+city_get_heights(const city_t *city)
 {
-    int **ret = malloc((unsigned int) city->size * sizeof(int *));
+    assert(city != NULL);
+    unsigned int sz = (unsigned int) city->size;
+    int **ret = malloc(sz * sizeof(int *) + sz * sz * sizeof(int));
+    assert(ret != NULL);
 
     for (int y = 0; y < city->size; y++) {
-        int *t = malloc((unsigned int) city->size * sizeof(int));
+        int *t = (int *) &ret[sz] + (unsigned int) y * sz;
         ret[y] = t;
 
         for (int x = 0; x < city->size; x++) {
             tower_t *tower = city_get_tower(city, 0, x, y);
-            t[x] = tower->height;
+            t[x] = tower_get_height(tower);
         }
     }
 
     return ret;
 }
 
+/**
+ * Устанавливает высоты башен из динамического двухмерного массива.
+ *
+ * @param [in] city Объект для установки высот.
+ * @param [in] heights Динамический двухмерный массив с высотами башен.
+ */
+void
+city_set_heights(city_t *city, const int **heights)
+{
+    assert(city != NULL);
+    assert(heights != NULL);
+
+    for (int y = 0; y < city->size; y++) {
+        for (int x = 0; x < city->size; x++) {
+            tower_set_height(city_get_tower(city, 0, x, y), heights[y][x]);
+        }
+    }
+}
+
+/**
+ * Возвращает динамический двухмерный массив массив с битовыми флагами этажей башен. Если массив
+ * больше не нужен, то он должен быть удален функцией free().
+ *
+ * @param [in] city Объект для копирования этажей в массив.
+ * @return Динамический двухмерный массив с этажами башен.
+ */
+int **
+city_get_floors(const city_t *city)
+{
+    assert(city != NULL);
+    unsigned int sz = (unsigned int) city->size;
+    int **ret = malloc(sz * sizeof(int *) + sz * sz * sizeof(int));
+    assert(ret != NULL);
+
+    for (int y = 0; y < city->size; y++) {
+        int *t = (int *) &ret[sz] + (unsigned int) y * sz;
+        ret[y] = t;
+
+        for (int x = 0; x < city->size; x++) {
+            tower_t *tower = city_get_tower(city, 0, x, y);
+            t[x] = tower_get_options(tower);
+        }
+    }
+
+    return ret;
+
+}
+
+/**
+ * Устанавливает этажи башен из динамического двухмерного массива.
+ *
+ * @param [in] city Объект для установки этажей.
+ * @param [in] floors Динамический двухмерный массив с этажами башен.
+ */
+void
+city_set_floors(city_t *city, const int **floors)
+{
+    assert(city != NULL);
+    assert(floors != NULL);
+
+    for (int y = 0; y < city->size; y++) {
+        for (int x = 0; x < city->size; x++) {
+            tower_set_options(city_get_tower(city, 0, x, y), floors[y][x]);
+        }
+    }
+
+}
+
 unsigned long long
 city_calc_iteration(const city_t *city)
 {
+    assert(city != NULL);
     unsigned long long result = 1;
     unsigned i = 0;
 
@@ -335,8 +397,9 @@ city_calc_iteration(const city_t *city)
 }
 
 void
-city_print(city_t *city)
+city_print(const city_t *city)
 {
+    assert(city != NULL);
     FILE *io = stdout;
 
     fprintf(io, "==============================\n  ");

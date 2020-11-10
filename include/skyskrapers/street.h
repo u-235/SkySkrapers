@@ -41,6 +41,9 @@ street_get_clue(const street_t *street);
 extern tower_t *
 street_get_tower(const street_t *street, int index);
 
+extern void
+street_fast_constraint(street_t *street);
+
 extern bool
 street_update(street_t *street);
 

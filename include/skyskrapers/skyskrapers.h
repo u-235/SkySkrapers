@@ -21,23 +21,26 @@ extern "C" {
 
 typedef struct _city city_t;
 
-city_t *
+extern city_t *
 city_new(int size);
 
-void
+extern void
 city_free(city_t *city);
 
-void
-city_load(city_t *city, int *clues);
+extern void
+city_load_clues(city_t *city, const int *clues);
 
-bool
+extern bool
 city_solve(city_t *city);
 
-int **
-city_export(city_t *city);
+extern int **
+city_get_heights(const city_t *city);
 
-void
-city_print(city_t *city);
+extern void
+city_set_heights(city_t *city, const int **heights);
+
+extern void
+city_print(const city_t *city);
 
 #ifdef __cplusplus
 }

@@ -22,11 +22,11 @@ int **
 SolvePuzzle(int size, int *clues)
 {
     city_t *city = city_new(size);
-    city_load(city, clues);
+    city_load_clues(city, clues);
     fprintf(stdout, "\n  Load puzzle\n");
     city_print(city);
     city_solve(city);
-    int **result = city_export(city);
+    int **result = city_get_heights(city);
     city_free(city);
     return result;
 }
