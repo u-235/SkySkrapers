@@ -1,6 +1,13 @@
+#################################
+#   Библиотека SkyScrapers      #
+#   (c) Николай Егоров, 2020    #
+#################################
 
-set(SOURCE_C
-   main.c
+cmake_minimum_required(VERSION 2.4)
+
+project(SkyScrapersLib LANGUAGES C)
+
+add_library(skyscrapers STATIC
    skyskrapers.c
    core/city.c
    core/street.c
@@ -12,4 +19,25 @@ set(SOURCE_C
    methods/step_down.c
    methods/bruteforce.c)
 
-add_executable(skyskrapers ${SOURCE_C})
+# Я не стал делать флаги компиляции в корневом CMakeLists, что бы снизить
+# зависимости. Может быть и зря.
+if (${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
+    target_compile_options(skyscrapers PRIVATE -g -O3 -fPIC)
+    target_compile_options(skyscrapers PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wcast-align
+        -Wcast-qual
+        -Wconversion
+        -Wenum-compare
+        -Wfloat-equal
+        -Wredundant-decls
+        -Wsign-conversion
+    )
+elseif (${CMAKE_C_COMPILER_ID} STREQUAL "MSVC")
+    # TODO настроить флаги компиляции.
+    target_compile_options(skyscrapers PRIVATE /W4 /WX)
+else()
+    message(WARNING "Unknown compiler with id=\"${CMAKE_C_COMPILER_ID}\".")
+endif ()
