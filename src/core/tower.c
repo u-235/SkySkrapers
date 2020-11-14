@@ -73,6 +73,11 @@ bool
 tower_set_height(tower_t *tower, int height)
 {
     assert(tower != NULL);
+
+    if (height == 0) {
+        return false;
+    }
+
     assert(height > 0 && height <= tower->size);
     assert(tower->height == 0 || tower->height == height);
     int old = tower->height;
@@ -112,9 +117,23 @@ bool
 tower_and_options(tower_t *tower, int options)
 {
     assert(tower != NULL);
-    assert(tower_has_floors(tower, options));
+    return tower_set_options(tower, tower->options & options);
+}
+
+int
+tower_get_options(tower_t *tower)
+{
+    assert(tower != NULL);
+    return tower->options;
+}
+
+int
+tower_set_options(tower_t *tower, int options)
+{
+    assert(tower != NULL);
+    assert(options != 0);
     int old = tower->options;
-    tower->options &= options;
+    tower->options = options;
 
     int t = 1;
 
@@ -134,13 +153,6 @@ tower_and_options(tower_t *tower, int options)
     }
 
     return changed;
-}
-
-int
-tower_get_options(tower_t *tower)
-{
-    assert(tower != NULL);
-    return tower->options;
 }
 
 /**

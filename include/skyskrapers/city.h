@@ -25,14 +25,26 @@ typedef struct _street street_t;
 
 typedef struct _city city_t;
 
-city_t *
+extern city_t *
 city_make(city_t *in, int size);
 
 extern city_t *
 city_copy(city_t *dst, const city_t *src);
 
 extern void
+city_set_clues(city_t *city, const int *clues);
+
+extern int **
+city_get_floors(const city_t *city);
+
+extern void
+city_set_floors(city_t *city, const int **floors);
+
+extern void
 city_notify_of_tower_change(city_t *city, int x, int y);
+
+extern void
+city_notify_of_street_change(city_t *city, int side, int pos);
 
 extern bool
 city_is_valid(const city_t *city);
@@ -42,9 +54,6 @@ city_is_solved(const city_t *city);
 
 extern unsigned long long
 city_calc_iteration(const city_t *city);
-
-extern int
-city_get_clue(const city_t *city, int side, int pos);
 
 extern tower_t *
 city_get_tower(const city_t *city, int side, int pos, int index);

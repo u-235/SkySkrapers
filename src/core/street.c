@@ -80,8 +80,13 @@ void
 street_set_clue(street_t *street, int clue)
 {
     assert(street != NULL);
-    assert(clue >= 0 && clue < street->size);
+    assert(clue >= 0 && clue <= street->size);
+    int old_clue = street->clue;
     street->clue = clue;
+
+    if (old_clue != street->clue) {
+        city_notify_of_street_change(street->parent, street->side, street->pos);
+    }
 }
 
 int
@@ -99,6 +104,54 @@ street_get_tower(const street_t *street, int index)
     return city_get_tower(street->parent, street->side, street->pos, index);
 }
 
+/**
+ * @brief Устанавливает начальные ограничения.
+ * @details После загрузки начальной конфигурации при помощи функций city_set_heights()
+ * и/или city_set_clues() эта функция делает несколько простых ограничений зданий.
+ *
+ * @param street ряд для быстрых ограничений.
+ */
+void
+street_fast_constraint(street_t *street)
+{
+    assert(street != NULL);
+    tower_t *tower;
+    int size = street->size;
+    int clue = street->clue;
+    int options = street->parent->mask;
+
+    if (clue == 1) {
+        tower = street_get_tower(street, 0);
+        tower_set_height(tower, size);
+        options >>= 1;
+
+        for (int i = 1; i < size; i++) {
+            tower = street_get_tower(street, i);
+
+            if (tower_has_floors(tower, options)) {
+                tower_and_options(tower, options);
+            }
+        }
+    } else if (clue == size) {
+        for (int i = 0; i < size; i++) {
+            tower = street_get_tower(street, i);
+            tower_set_height(tower, i + 1);
+        }
+    } else if (clue > 0) {
+        for (int i = size; i > 0; i--) {
+            if (i < clue) {
+                options >>= 1;
+            }
+
+            tower = street_get_tower(street, i - 1);
+
+            if (tower_has_floors(tower, options)) {
+                tower_and_options(tower, options);
+            }
+        }
+    }
+}
+
 /** Получение индекса первого здания с максимальной высотой. */
 static int
 find_highest_first(street_t *street);
@@ -110,7 +163,7 @@ find_highest_last(street_t *street);
 static void
 update_hill(street_t *street);
 
-bool
+static bool
 check_valid(street_t *street);
 
 bool

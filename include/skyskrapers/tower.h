@@ -51,6 +51,9 @@ tower_and_options(tower_t *tower, int options);
 extern int
 tower_get_options(tower_t *tower);
 
+extern int
+tower_set_options(tower_t *tower, int options);
+
 /**
  * Вычисление допустимой минимальной высоты здания.
  *
