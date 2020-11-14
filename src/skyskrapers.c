@@ -25,7 +25,8 @@ struct _handler {
     {"exclude", method_exclude},
     {"first of two", method_first_of_two},
     {"staircase", method_staircase},
-    {"step_down", method_step_down}
+    {"step down", method_step_down},
+    {"slope", method_slope}
 };
 
 bool

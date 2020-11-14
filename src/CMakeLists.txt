@@ -17,6 +17,7 @@ add_library(skyscrapers STATIC
    methods/first_of_two.c
    methods/staircase.c
    methods/step_down.c
+   methods/slope.c
    methods/bruteforce.c)
 
 # Я не стал делать флаги компиляции в корневом CMakeLists, что бы снизить

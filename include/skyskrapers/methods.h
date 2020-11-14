@@ -46,6 +46,9 @@ extern bool
 method_step_down(const street_t *street);
 
 extern bool
+method_slope(const street_t *street);
+
+extern bool
 method_bruteforce(city_t *city);
 
 #ifdef __cplusplus
