@@ -18,58 +18,19 @@
 bool
 method_bruteforce(city_t *city)
 {
-    tower_t *tower;
-    int x = 0, y = 0, max = 0;
+    tower_t *tower = 0;
+    bool run = true;
 
-    /* Вычисление оптимальной точки для перебора.
-     * Сначала в каждой колонке этажи недостроенных зданий суммируются и эта сумма записывается
-     * в поле weight зданий колонки.*/
-    for (int iy = 0; iy < city->size; iy++) {
-        int sum = 0;
+    for (int x = 0; run && x < city->size; x++) {
+        for (int y = 0; run && y < city->size; y++) {
+            tower = city_get_tower(city, 0, x, y);
 
-        for (int ix = 0; ix < city->size; ix++) {
-            tower = city_get_tower(city, 0, ix, iy);
-
-            if (!tower_is_complete(tower)) {
-                sum += tower_get_options(tower);
-            }
-        }
-
-        for (int ix = 0; ix < city->size; ix++) {
-            city_get_tower(city, 0, ix, iy)->weight = sum;
-        }
-    }
-
-    max = 0;
-
-    /* Затем находится такие же суммы для строк и эти суммы плюсуются с полем weight. Попутно
-     * запоминается недостроенное здание с самым большим весом. */
-    for (int ix = 0; ix < city->size; ix++) {
-        int sum = 0;
-
-        for (int iy = 0; iy < city->size; iy++) {
-            tower = city_get_tower(city, 0, ix, iy);
-
-            if (!tower_is_complete(tower)) {
-                sum += tower_get_options(tower);
-            }
-        }
-
-        for (int iy = 0; iy < city->size; iy++) {
-            tower = city_get_tower(city, 0, ix, iy);
-            int w = tower->weight + sum;
-
-            if (!tower_is_complete(tower) && w > max) {
-                x = ix;
-                y = iy;
-                max = w;
-            }
+            run = tower_is_complete(tower);
         }
     }
 
     /* Для возврата состояния города при неудачной попытке перебора делаем копию.
      * А для перебора только допустимых высот заводим bit_enable. Это немного ускорит поиск. */
-    tower = city_get_tower(city, 0, x, y);
     city_t *backup = city_copy(0, city);
     int bit_enable = 1 << (city->size - 1);
 
