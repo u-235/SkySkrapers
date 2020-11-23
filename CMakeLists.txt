@@ -12,6 +12,12 @@ project(SkyScrapers LANGUAGES C)
 
 # API библиотеки
 include_directories(include)
+# Это нужно, что бы заголовочные файлы появились в панели "Проекты" Qt Creator
+add_custom_target(nop SOURCES
+    include/skyskrapers/city.h
+    include/skyskrapers/methods.h
+    include/skyskrapers/street.h
+    include/skyskrapers/tower.h)
 # Папка с исходниками библиотеки.
 add_subdirectory(src)
 
