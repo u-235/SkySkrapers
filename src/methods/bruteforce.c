@@ -29,6 +29,10 @@ method_bruteforce(city_t *city)
         }
     }
 
+    if (run) {
+        return false;
+    }
+
     /* Для возврата состояния города при неудачной попытке перебора делаем копию.
      * А для перебора только допустимых высот заводим bit_enable. Это немного ускорит поиск. */
     city_t *backup = city_copy(0, city);
@@ -42,10 +46,11 @@ method_bruteforce(city_t *city)
                 city_free(backup);
                 return true;
             }
+
+            city_copy(city, backup);
         }
 
         bit_enable >>= 1;
-        city_copy(city, backup);
     }
 
     city_free(backup);
