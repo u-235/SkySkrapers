@@ -204,24 +204,22 @@ city_is_valid(const city_t *city)
     return  valid;
 }
 
-bool
-city_is_solved(const city_t *city)
+int
+city_get_state(const city_t *city)
 {
     assert(city != NULL);
 
     if (!city_is_valid(city)) {
-        return false;
+        return STATE_INVALID;
     }
 
-    for (int x = 0; x < city->size; x++) {
-        for (int y = 0; y < city->size; y++) {
-            if (city_get_tower(city, 0, x, y)->height == 0) {
-                return false;
-            }
+    for (int i = 0; i < city->size * city->size; i++) {
+        if (city->towers[i].height == 0) {
+            return STATE_OK;
         }
     }
 
-    return true;
+    return STATE_COMPLETE;
 }
 
 static int

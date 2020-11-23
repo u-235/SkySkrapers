@@ -21,8 +21,6 @@ struct _handler {
     char *name;
     bool (* func)(const street_t *street);
 } handlers[] = {
-    {"obvious", method_obvious},
-    {"exclude", method_exclude},
     {"first of two", method_first_of_two},
     {"staircase", method_staircase},
     {"step down", method_step_down},
@@ -40,6 +38,10 @@ city_solve_step(city_t *city)
         city->need_handle[i] = false;
         street_t *street = &city->streets[i];
 
+        if (method_exclude(street) | method_obvious(street)) {
+            return true;
+        }
+
         for (size_t j = 0; j < sizeof(handlers) / sizeof(struct _handler); j++) {
             if (handlers[j].func(street)) {
                 fprintf(stdout, "Pass %s\n", handlers[j].name);
@@ -54,17 +56,14 @@ city_solve_step(city_t *city)
 bool
 city_solve(city_t *city)
 {
-    while (!city_is_solved(city)) {
-        if (!city_is_valid(city)) {
-            fprintf(stdout, "ERROR\nInvalid city.\n");
-            return false;
-        }
+    int state = STATE_INVALID;
 
+    while ((state = city_get_state(city)) == STATE_OK) {
         if (!city_solve_step(city)) {
             fprintf(stdout, "Bruteforce.\n");
             return method_bruteforce(city);
         }
     }
 
-    return true;
+    return state == STATE_COMPLETE ? true : false;
 }

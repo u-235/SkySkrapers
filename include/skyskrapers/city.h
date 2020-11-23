@@ -49,8 +49,14 @@ city_notify_of_street_change(city_t *city, int side, int pos);
 extern bool
 city_is_valid(const city_t *city);
 
-extern bool
-city_is_solved(const city_t *city);
+enum {
+    STATE_INVALID = -1,
+    STATE_OK = 0,
+    STATE_COMPLETE = 1
+};
+
+extern int
+city_get_state(const city_t *city);
 
 extern unsigned long long
 city_calc_iteration(const city_t *city);
