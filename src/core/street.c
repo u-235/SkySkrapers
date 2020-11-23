@@ -40,6 +40,12 @@ street_make(street_t *in, city_t *parent, int side, int pos)
     ret->vacant = 0;
     ret->hill_count = 0;
     ret->hill_array = malloc((unsigned int) size * sizeof(hill_t));
+    ret->towers = malloc((unsigned int) size * sizeof(tower_t *));
+
+    for (int i = 0; i < size; i++) {
+        ret->towers[i] = city_get_tower(parent, side, pos, i);
+    }
+
     return ret;
 }
 
@@ -67,6 +73,7 @@ street_copy(street_t *dst, const street_t *src)
     ret->hill_count = src->hill_count;
     unsigned int sz = (unsigned int) src->size;
     memcpy(ret->hill_array, src->hill_array, sz * sizeof(hill_t));
+    memcpy(ret->towers, src->towers, sz * sizeof(tower_t *));
     return ret;
 }
 
@@ -101,7 +108,7 @@ street_get_tower(const street_t *street, int index)
 {
     assert(street != NULL);
     assert(index >= 0 && index < street->size);
-    return city_get_tower(street->parent, street->side, street->pos, index);
+    return street->towers[index];
 }
 
 /**
@@ -160,7 +167,7 @@ find_highest_first(street_t *street);
 static int
 find_highest_last(street_t *street);
 
-static void
+static bool
 update_hill(street_t *street);
 
 static bool
@@ -172,8 +179,11 @@ street_update(street_t *street)
     assert(street != NULL);
     street->highest_first = find_highest_first(street);
     street->highest_last = find_highest_last(street);
-    update_hill(street);
-    street->valid = check_valid(street);
+
+    if (!check_valid(street) || !update_hill(street)) {
+        street->valid = false;
+    }
+
     return street->valid;
 }
 
@@ -188,7 +198,7 @@ find_highest_first(street_t *street)
     int highest = size - 1;
     int mask = tower_get_mask(size, size);
 
-    for (int i = 0 ; i < size; i++) {
+    for (int i = 0; i  < size; i++) {
         tower_t *tower = street_get_tower(street, i);
 
         if (tower_has_floors(tower, mask)) {
@@ -207,7 +217,7 @@ find_highest_last(street_t *street)
     int highest = size - 1;
     int mask = tower_get_mask(size, size);
 
-    for (int i = 0 ; i < size; i++) {
+    for (int i = 0; i  < size; i++) {
         tower_t *tower = street_get_tower(street, i);
 
         if (tower_has_floors(tower, mask)) {
@@ -222,7 +232,7 @@ find_highest_last(street_t *street)
     return highest;
 }
 
-void
+bool
 update_hill(street_t *street)
 {
     int size = street->size;
@@ -303,6 +313,8 @@ update_hill(street_t *street)
     street->hill_count = hill_cnt;
     street->vacant = total_vacant;
     street->visible = total_visible;
+
+    return true;
 }
 
 typedef struct _check_info {

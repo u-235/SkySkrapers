@@ -60,6 +60,7 @@ typedef struct _hill {
 typedef struct _street {
     city_t *parent;
     int size;
+    tower_t **towers;
     int side;
     int pos;
     int clue;
