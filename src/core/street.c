@@ -81,6 +81,7 @@ void
 street_free(street_t *street)
 {
     free(street->hill_array);
+    free(street->towers);
 }
 
 void
