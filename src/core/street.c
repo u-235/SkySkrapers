@@ -397,9 +397,5 @@ check_valid(street_t *street)
         return false;
     }
 
-    if (info.visible + info.foreground == 0 && info.offstage != clue) {
-        return false;
-    }
-
     return  true;
 }
